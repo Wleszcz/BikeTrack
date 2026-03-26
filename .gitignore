@@ -1,0 +1,28 @@
+# Gradle
+.gradle/
+**/build/
+
+# Local config
+local.properties
+
+# Android Studio / IntelliJ
+.idea/
+*.iml
+
+# Native build
+.externalNativeBuild/
+.cxx/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Signing
+*.jks
+*.keystore
+
+# Misc
+captures/
