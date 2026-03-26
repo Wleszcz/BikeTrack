@@ -34,6 +34,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var tripTimeView: TextView
     private lateinit var clockView: TextView
     private lateinit var averageSpeedView: TextView
+    private lateinit var maxSpeedView: TextView
     private lateinit var statusTextView: TextView
 
     private val clockFormatter = DateTimeFormatter.ofPattern("HH:mm", Locale.getDefault())
@@ -43,6 +44,7 @@ class MainActivity : AppCompatActivity() {
     private var accumulatedElapsedMs = 0L
     private var totalDistanceM = 0f
     private var currentSpeedKmh = 0.0
+    private var maxSpeedKmh = 0.0
     private var lastLocation: Location? = null
     private var timerJob: Job? = null
 
@@ -60,10 +62,9 @@ class MainActivity : AppCompatActivity() {
                 totalDistanceM += previous.distanceTo(location)
             }
 
-            currentSpeedKmh = when {
-                location.hasSpeed() -> location.speed * 3.6
-                previous != null -> estimateSpeedKmh(previous, location)
-                else -> 0.0
+            currentSpeedKmh = if (location.hasSpeed()) location.speed * 3.6 else 0.0
+            if (currentSpeedKmh > maxSpeedKmh) {
+                maxSpeedKmh = currentSpeedKmh
             }
 
             lastLocation = location
@@ -88,6 +89,7 @@ class MainActivity : AppCompatActivity() {
         tripTimeView = findViewById(R.id.tripTime)
         clockView = findViewById(R.id.clock)
         averageSpeedView = findViewById(R.id.averageSpeed)
+        maxSpeedView = findViewById(R.id.maxSpeed)
         statusTextView = findViewById(R.id.statusText)
 
         findViewById<Button>(R.id.startButton).setOnClickListener { startTrip() }
@@ -120,7 +122,7 @@ class MainActivity : AppCompatActivity() {
     @SuppressLint("MissingPermission")
     private fun startLocationUpdates() {
         val request = LocationRequest.Builder(500L)
-            .setMinUpdateIntervalMillis(300L)
+            .setMinUpdateIntervalMillis(500L)
             .setPriority(Priority.PRIORITY_HIGH_ACCURACY)
             .build()
 
@@ -161,6 +163,7 @@ class MainActivity : AppCompatActivity() {
         accumulatedElapsedMs = 0L
         totalDistanceM = 0f
         currentSpeedKmh = 0.0
+        maxSpeedKmh = 0.0
         lastLocation = null
         statusTextView.text = if (hasLocationPermission()) getString(R.string.ready) else getString(R.string.permission_denied)
         render()
@@ -180,6 +183,7 @@ class MainActivity : AppCompatActivity() {
         val elapsedMs = elapsedMs()
         currentSpeedView.text = formatSpeed(currentSpeedKmh)
         averageSpeedView.text = formatSpeed(averageSpeedKmh(elapsedMs))
+        maxSpeedView.text = formatSpeed(maxSpeedKmh)
         tripTimeView.text = formatTripTime(elapsedMs)
         clockView.text = formatClock()
     }
@@ -195,11 +199,6 @@ class MainActivity : AppCompatActivity() {
     private fun averageSpeedKmh(elapsedMs: Long): Double {
         val hours = elapsedMs / 3_600_000.0
         return if (hours > 0.0) (totalDistanceM / 1000.0) / hours else 0.0
-    }
-
-    private fun estimateSpeedKmh(previous: Location, current: Location): Double {
-        val dtSeconds = (current.elapsedRealtimeNanos - previous.elapsedRealtimeNanos) / 1_000_000_000.0
-        return if (dtSeconds > 0.0) (previous.distanceTo(current) / dtSeconds) * 3.6 else 0.0
     }
 
     private fun formatSpeed(speed: Double): String {
