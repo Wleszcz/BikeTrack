@@ -3,7 +3,6 @@ package com.example.bike
 import android.Manifest
 import android.annotation.SuppressLint
 import android.content.pm.PackageManager
-import android.location.Location
 import android.os.Bundle
 import android.os.Looper
 import android.os.SystemClock
@@ -42,32 +41,23 @@ class MainActivity : AppCompatActivity() {
     private var isTripRunning = false
     private var activeStartMs = 0L
     private var accumulatedElapsedMs = 0L
-    private var totalDistanceM = 0f
     private var currentSpeedKmh = 0.0
     private var maxSpeedKmh = 0.0
-    private var lastLocation: Location? = null
+    private val speedSamplesKmh = mutableListOf<Double>()
     private var timerJob: Job? = null
 
     private val locationCallback = object : LocationCallback() {
         override fun onLocationResult(result: LocationResult) {
             val location = result.lastLocation ?: return
 
-            if (!isTripRunning) {
-                lastLocation = location
-                return
-            }
-
-            val previous = lastLocation
-            if (previous != null) {
-                totalDistanceM += previous.distanceTo(location)
-            }
-
             currentSpeedKmh = if (location.hasSpeed()) location.speed * 3.6 else 0.0
-            if (currentSpeedKmh > maxSpeedKmh) {
-                maxSpeedKmh = currentSpeedKmh
-            }
 
-            lastLocation = location
+            if (isTripRunning) {
+                speedSamplesKmh.add(currentSpeedKmh)
+                if (currentSpeedKmh > maxSpeedKmh) {
+                    maxSpeedKmh = currentSpeedKmh
+                }
+            }
             render()
         }
     }
@@ -138,8 +128,6 @@ class MainActivity : AppCompatActivity() {
         if (!isTripRunning) {
             isTripRunning = true
             activeStartMs = SystemClock.elapsedRealtime()
-            currentSpeedKmh = 0.0
-            lastLocation = null
             statusTextView.text = getString(R.string.tracking)
             render()
         }
@@ -150,8 +138,6 @@ class MainActivity : AppCompatActivity() {
             accumulatedElapsedMs += SystemClock.elapsedRealtime() - activeStartMs
             isTripRunning = false
             activeStartMs = 0L
-            currentSpeedKmh = 0.0
-            lastLocation = null
             statusTextView.text = getString(R.string.paused)
             render()
         }
@@ -161,10 +147,8 @@ class MainActivity : AppCompatActivity() {
         isTripRunning = false
         activeStartMs = 0L
         accumulatedElapsedMs = 0L
-        totalDistanceM = 0f
-        currentSpeedKmh = 0.0
         maxSpeedKmh = 0.0
-        lastLocation = null
+        speedSamplesKmh.clear()
         statusTextView.text = if (hasLocationPermission()) getString(R.string.ready) else getString(R.string.permission_denied)
         render()
     }
@@ -182,7 +166,7 @@ class MainActivity : AppCompatActivity() {
     private fun render() {
         val elapsedMs = elapsedMs()
         currentSpeedView.text = formatSpeed(currentSpeedKmh)
-        averageSpeedView.text = formatSpeed(averageSpeedKmh(elapsedMs))
+        averageSpeedView.text = formatSpeed(averageSpeedKmh())
         maxSpeedView.text = formatSpeed(maxSpeedKmh)
         tripTimeView.text = formatTripTime(elapsedMs)
         clockView.text = formatClock()
@@ -196,9 +180,8 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun averageSpeedKmh(elapsedMs: Long): Double {
-        val hours = elapsedMs / 3_600_000.0
-        return if (hours > 0.0) (totalDistanceM / 1000.0) / hours else 0.0
+    private fun averageSpeedKmh(): Double {
+        return if (speedSamplesKmh.isNotEmpty()) speedSamplesKmh.average() else 0.0
     }
 
     private fun formatSpeed(speed: Double): String {
