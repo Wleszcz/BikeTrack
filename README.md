@@ -2,7 +2,7 @@
 
 Prosta aplikacja Android do śledzenia jazdy na rowerze.
 
-## Co to jestScreenshot
+## Co to jest
 
 Aplikacja pokazuje:
 
@@ -30,4 +30,4 @@ Wymagania:
 
 ## Screen
 
-`![Screen aplikacji](./docs/Screenshot.jpg)`
+![Screen aplikacji](./docs/Screenshot.jpg)
